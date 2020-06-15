@@ -284,92 +284,95 @@ procedure longlines is
 			begin
 				Ada.Text_IO.Overloaded_Look_Ahead (File, Item, End_Of_Line);
 				Ada.Text_IO.Skip_Ahead (File);
-				exit when End_Of_Line;
-				case Item is
-					when ' ' =>
-						Line_Number := Line_Number + 1;
-						Ada.Text_IO.Skip_Line (File);
-						Added := False;
-					when '+' =>
-						Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
-						Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
-						Get_Line (Line);
-						declare
-							Line_Ref : Wide_Wide_String
-								renames Unbounded_Wide_Wide_Strings
-										.Constant_Reference (
-									Line);
-						begin
-							if Line_Ref'Length >= 4
-								and then Line_Ref (Line_Ref'First + 1) = '+'
-								and then Line_Ref (Line_Ref'First + 2) = '+'
-								and then Line_Ref (Line_Ref'First + 3) = ' '
-							then
-								Process_Diff_Name (Line_Ref, Name);
-								Line_Number := 1;
-								Added := False;
-							else
-								declare
-									Name_Ref : String
-										renames Unbounded_Strings.Constant_Reference (
-											Name);
-								begin
-									Process_Line (
-										Name_Ref,
-										Line_Ref (Line_Ref'First + 1 .. Line_Ref'Last),
-										Line_Number,
-										Tab => Tab, East_Asian => East_Asian,
-										Width => Width, Colored => Colored);
-								end;
-								Line_Number := Line_Number + 1;
-								Added := True;
-							end if;
-						end;
-					when '@' =>
-						Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
-						Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
-						Get_Line (Line);
-						declare
-							Line_Ref : Wide_Wide_String
-								renames Unbounded_Wide_Wide_Strings
-										.Constant_Reference (
-									Line);
-						begin
-							if Line_Ref'Length >= 3
-								and then Line_Ref (Line_Ref'First) = '@'
-								and then Line_Ref (Line_Ref'First + 1) = '@'
-								and then Line_Ref (Line_Ref'First + 2) = ' '
-							then
-								Process_Diff_Hunk (Line_Ref, Line_Number);
-							end if;
-						end;
-						Added := False;
-					when '\' =>
-						if Final_New_Line and Added then
+				if not End_Of_Line then
+					case Item is
+						when ' ' =>
+							Line_Number := Line_Number + 1;
+							Ada.Text_IO.Skip_Line (File);
+							Added := False;
+						when '+' =>
 							Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
+							Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
 							Get_Line (Line);
 							declare
-								Name_Ref : String
-									renames Unbounded_Strings.Constant_Reference (Name);
 								Line_Ref : Wide_Wide_String
 									renames Unbounded_Wide_Wide_Strings
 											.Constant_Reference (
 										Line);
 							begin
-								Report_Missing_Final_New_Line (
-									Name_Ref,
-									Line_Number - 1,
-									Line_Ref,
-									Colored => Colored);
+								if Line_Ref'Length >= 4
+									and then Line_Ref (Line_Ref'First + 1) = '+'
+									and then Line_Ref (Line_Ref'First + 2) = '+'
+									and then Line_Ref (Line_Ref'First + 3) = ' '
+								then
+									Process_Diff_Name (Line_Ref, Name);
+									Line_Number := 1;
+									Added := False;
+								else
+									declare
+										Name_Ref : String
+											renames Unbounded_Strings.Constant_Reference (
+												Name);
+									begin
+										Process_Line (
+											Name_Ref,
+											Line_Ref (
+												Line_Ref'First + 1 .. Line_Ref'Last),
+											Line_Number,
+											Tab => Tab, East_Asian => East_Asian,
+											Width => Width, Colored => Colored);
+									end;
+									Line_Number := Line_Number + 1;
+									Added := True;
+								end if;
 							end;
-						else
+						when '@' =>
+							Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
+							Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
+							Get_Line (Line);
+							declare
+								Line_Ref : Wide_Wide_String
+									renames Unbounded_Wide_Wide_Strings
+											.Constant_Reference (
+										Line);
+							begin
+								if Line_Ref'Length >= 3
+									and then Line_Ref (Line_Ref'First) = '@'
+									and then Line_Ref (Line_Ref'First + 1) = '@'
+									and then Line_Ref (Line_Ref'First + 2) = ' '
+								then
+									Process_Diff_Hunk (Line_Ref, Line_Number);
+								end if;
+							end;
+							Added := False;
+						when '\' =>
+							if Final_New_Line and Added then
+								Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
+								Get_Line (Line);
+								declare
+									Name_Ref : String
+										renames Unbounded_Strings.Constant_Reference (
+											Name);
+									Line_Ref : Wide_Wide_String
+										renames Unbounded_Wide_Wide_Strings
+												.Constant_Reference (
+											Line);
+								begin
+									Report_Missing_Final_New_Line (
+										Name_Ref,
+										Line_Number - 1,
+										Line_Ref,
+										Colored => Colored);
+								end;
+							else
+								Ada.Text_IO.Skip_Line (File);
+							end if;
+							Added := False;
+						when others =>
 							Ada.Text_IO.Skip_Line (File);
-						end if;
-						Added := False;
-					when others =>
-						Ada.Text_IO.Skip_Line (File);
-						Added := False;
-				end case;
+							Added := False;
+					end case;
+				end if;
 			end;
 		end loop;
 	end Process_Diff;
