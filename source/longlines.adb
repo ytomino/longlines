@@ -165,6 +165,64 @@ procedure longlines is
 		Final_New_Line : in Boolean;
 		Colored : in Boolean)
 	is
+		type Git_File_Mode is mod 8#1000000#;
+		Default_Mode : constant Git_File_Mode := 8#100644#;
+		Symbolic_Link : constant Git_File_Mode := 8#020000#;
+		function Value (Image : Wide_Wide_String) return Git_File_Mode is
+		begin
+			return Git_File_Mode'Wide_Wide_Value ("8#" & Image & "#");
+		exception
+			when Constraint_Error =>
+				return Default_Mode;
+		end Value;
+		procedure Process_New_File_Mode (
+			Line : in Wide_Wide_String;
+			Mode : out Git_File_Mode)
+		is
+			pragma Assert (
+				Line'Length >= 14
+				and then Line (Line'First .. Line'First + 13) = "new file mode ");
+			P : Positive := Line'First + 14;
+			First : constant Positive := P;
+		begin
+			while P <= Line'Last and then Line (P) in '0' .. '7' loop
+				P := P + 1;
+			end loop;
+			Mode := Value (Line (First .. P - 1));
+		end Process_New_File_Mode;
+		procedure Process_Index (
+			Line : in Wide_Wide_String;
+			Mode : in out Git_File_Mode)
+		is
+			pragma Assert (
+				Line'Length >= 6
+				and then Line (Line'First .. Line'First + 5) = "index ");
+			P : Positive := Line'First + 6;
+		begin
+			declare
+				Index : Natural;
+			begin
+				Index :=
+					Wide_Wide_Functions.Index_Element_Forward (
+						Line (P .. Line'Last),
+						Ada.Wide_Wide_Characters.Latin_1.Space);
+				if Index = 0 then
+					P := Line'Last + 1;
+				else
+					P := Index + 1;
+				end if;
+			end;
+			if P <= Line'Last then
+				declare
+					First : constant Positive := P;
+				begin
+					while P <= Line'Last and then Line (P) in '0' .. '7' loop
+						P := P + 1;
+					end loop;
+					Mode := Value (Line (First .. P - 1));
+				end;
+			end if;
+		end Process_Index;
 		procedure Process_Diff_Name (
 			Line : in Wide_Wide_String;
 			Name : out Unbounded_Strings.Unbounded_String)
@@ -271,6 +329,7 @@ procedure longlines is
 				Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
 			end loop;
 		end Get_Line;
+		Mode : Git_File_Mode := Default_Mode;
 		Name : Unbounded_Strings.Unbounded_String;
 		Line : Unbounded_Wide_Wide_Strings.Unbounded_String;
 		Line_Number : Positive := 1;
@@ -309,19 +368,22 @@ procedure longlines is
 									Line_Number := 1;
 									Added := False;
 								else
-									declare
-										Name_Ref : String
-											renames Unbounded_Strings.Constant_Reference (
-												Name);
-									begin
-										Process_Line (
-											Name_Ref,
-											Line_Ref (
-												Line_Ref'First + 1 .. Line_Ref'Last),
-											Line_Number,
-											Tab => Tab, East_Asian => East_Asian,
-											Width => Width, Colored => Colored);
-									end;
+									if (Mode and Symbolic_Link) = 0 then
+										declare
+											Name_Ref : String
+												renames Unbounded_Strings
+														.Constant_Reference (
+													Name);
+										begin
+											Process_Line (
+												Name_Ref,
+												Line_Ref (
+													Line_Ref'First + 1 .. Line_Ref'Last),
+												Line_Number,
+												Tab => Tab, East_Asian => East_Asian,
+												Width => Width, Colored => Colored);
+										end;
+									end if;
 									Line_Number := Line_Number + 1;
 									Added := True;
 								end if;
@@ -345,8 +407,70 @@ procedure longlines is
 								end if;
 							end;
 							Added := False;
+						when 'd' =>
+							Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
+							Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
+							Get_Line (Line);
+							declare
+								Line_Ref : Wide_Wide_String
+									renames Unbounded_Wide_Wide_Strings
+											.Constant_Reference (
+										Line);
+							begin
+								if Line_Ref'Length >= 5
+									and then Line_Ref (
+											Line_Ref'First .. Line_Ref'First + 4) =
+										"diff "
+								then
+									Unbounded_Strings.Set_Length (Name, 0);
+									Mode := Default_Mode;
+									Line_Number := 1;
+								end if;
+							end;
+							Added := False;
+						when 'i' =>
+							Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
+							Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
+							Get_Line (Line);
+							declare
+								Line_Ref : Wide_Wide_String
+									renames Unbounded_Wide_Wide_Strings
+											.Constant_Reference (
+										Line);
+							begin
+								if Line_Ref'Length >= 6
+									and then Line_Ref (
+											Line_Ref'First .. Line_Ref'First + 5) =
+										"index "
+								then
+									Process_Index (Line_Ref, Mode);
+								end if;
+							end;
+							Added := False;
+						when 'n' =>
+							Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
+							Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
+							Get_Line (Line);
+							declare
+								Line_Ref : Wide_Wide_String
+									renames Unbounded_Wide_Wide_Strings
+											.Constant_Reference (
+										Line);
+							begin
+								if Line_Ref'Length >= 14
+									and then Line_Ref (
+											Line_Ref'First .. Line_Ref'First + 13) =
+										"new file mode "
+								then
+									Process_New_File_Mode (Line_Ref, Mode);
+								end if;
+							end;
+							Added := False;
 						when '\' =>
-							if Final_New_Line and Added then
+							if Final_New_Line
+								and then Added
+								and then (Mode and Symbolic_Link) = 0
+							then
 								Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
 								Get_Line (Line);
 								declare
