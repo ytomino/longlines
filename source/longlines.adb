@@ -1,6 +1,6 @@
 with Ada.Characters.Conversions;
 with Ada.Command_Line.Parsing;
-with Ada.Directories;
+with Ada.Directories.Information;
 with Ada.Hierarchical_File_Names;
 with Ada.Integer_Text_IO;
 with Ada.IO_Modes;
@@ -394,6 +394,8 @@ procedure longlines is
 			& "Check newline exists at end of file (default: on)");
 		P ("  -F --no-final-newline Turn off -F");
 		P ("  -h --help             Display this information");
+		P ("  -L --dereference      Follow symbolic links (default: off)");
+		P ("  -P --no-dereference   Turn off -L");
 		P ("  -pNUM --strip=NUM     "
 			& "Strip num leading directories from each path in diff");
 		P ("  -tNUM --tab=NUM       Expand horizonal tab as NUM (default: 8)");
@@ -429,6 +431,7 @@ procedure longlines is
 	package IO_Modes renames Ada.IO_Modes;
 	Diff : Boolean := False;
 	Strip : Natural := 0;
+	Dereference : Boolean := False;
 	Tab : Natural := 8;
 	East_Asian : Boolean := CJK;
 	Width : Positive := 79;
@@ -451,6 +454,10 @@ begin
 		elsif Parsing.Is_Option (I, 'h', "help") then
 			Help;
 			return;
+		elsif Parsing.Is_Option (I, 'L', "dereference") then
+			Dereference := True;
+		elsif Parsing.Is_Option (I, 'P', "no-dereference") then
+			Dereference := False;
 		elsif Parsing.Is_Option (I, 'p', "strip", ':') then
 			declare
 				X : constant Integer := Get_Value (I, 0, 255);
@@ -492,10 +499,28 @@ begin
 			From_Standard_Input := False;
 			declare
 				Argument : constant String := Parsing.Argument (I);
+				Skip : Boolean := False;
 			begin
-				if Ada.Directories.Kind (Argument) = Ada.Directories.Directory then
-					null;
-				else
+				declare
+					Directory_Entry : constant
+							Ada.Directories.Directory_Entry_Type :=
+						Ada.Directories.Get_Entry (Argument);
+				begin
+					case Ada.Directories.Kind (Directory_Entry) is
+						when Ada.Directories.Ordinary_File =>
+							null;
+						when Ada.Directories.Directory =>
+							Skip := True;
+						when Ada.Directories.Special_File =>
+							if Ada.Directories.Information.Is_Symbolic_Link (
+									Directory_Entry)
+								and then not Dereference
+							then
+								Skip := True;
+							end if;
+					end case;
+				end;
+				if not Skip then
 					declare
 						File : Ada.Text_IO.File_Type;
 					begin
