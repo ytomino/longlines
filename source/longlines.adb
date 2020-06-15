@@ -1,4 +1,5 @@
 with Ada.Characters.Conversions;
+with Ada.Characters.Latin_1;
 with Ada.Command_Line.Parsing;
 with Ada.Directories.Information;
 with Ada.Hierarchical_File_Names;
@@ -6,9 +7,8 @@ with Ada.Integer_Text_IO;
 with Ada.IO_Modes;
 with Ada.Locales;
 with Ada.Strings.East_Asian_Width;
+with Ada.Strings.Functions;
 with Ada.Strings.Unbounded_Strings;
-with Ada.Strings.Unbounded_Wide_Wide_Strings;
-with Ada.Strings.Wide_Wide_Functions;
 with Ada.Text_IO.Terminal.Colors.Names;
 with Ada.Wide_Wide_Characters.Latin_1;
 procedure longlines is
@@ -17,19 +17,23 @@ procedure longlines is
 	use type Ada.Text_IO.Terminal.Colors.Color;
 	package East_Asian_Width renames Ada.Strings.East_Asian_Width;
 	procedure Get_Line_Width (
-		Line : in Wide_Wide_String;
+		Line : in String;
 		Over_Index : out Natural;
 		Line_Width : out Natural;
 		Tab : in Natural;
 		East_Asian : in Boolean;
-		Width : in Positive) is
+		Width : in Positive)
+	is
+		Last : Natural := Line'First - 1;
 	begin
 		Over_Index := 0;
 		Line_Width := 0;
-		for I in Line'Range loop
+		while Last < Line'Last loop
 			declare
-				Item : Wide_Wide_Character renames Line (I);
+				I : constant Positive := Last + 1;
+				Item : Wide_Wide_Character;
 			begin
+				Ada.Characters.Conversions.Get (Line (I .. Line'Last), Last, Item);
 				if Item = Ada.Wide_Wide_Characters.Latin_1.HT then
 					if Tab > 0 then
 						Line_Width := Line_Width + (Tab - Line_Width rem Tab);
@@ -51,7 +55,7 @@ procedure longlines is
 	package Terminal renames Ada.Text_IO.Terminal;
 	procedure Process_Line (
 		Name : in String;
-		Line : in Wide_Wide_String;
+		Line : in String;
 		Line_Number : in Positive;
 		Tab : in Natural;
 		East_Asian : in Boolean;
@@ -70,12 +74,12 @@ procedure longlines is
 			Ada.Text_IO.Put (':');
 			Ada.Integer_Text_IO.Put (Line_Width, Width => 1);
 			Ada.Text_IO.Put (':');
-			Ada.Text_IO.Overloaded_Put (Line (Line'First .. Over_Index - 1));
+			Ada.Text_IO.Put (Line (Line'First .. Over_Index - 1));
 			if Colored then
 				Terminal.Colors.Set_Color (Ada.Text_IO.Current_Output.all,
 					Foreground => +Terminal.Colors.Names.Red);
 			end if;
-			Ada.Text_IO.Overloaded_Put (Line (Over_Index .. Line'Last));
+			Ada.Text_IO.Put (Line (Over_Index .. Line'Last));
 			if Colored then
 				Terminal.Colors.Reset_Color (Ada.Text_IO.Current_Output.all);
 			end if;
@@ -85,7 +89,7 @@ procedure longlines is
 	procedure Report_Missing_Final_New_Line (
 		Name : in String;
 		Line_Number : in Positive;
-		Message : in Wide_Wide_String;
+		Message : in String;
 		Colored : in Boolean) is
 	begin
 		Ada.Text_IO.Put (Name);
@@ -96,14 +100,13 @@ procedure longlines is
 			Terminal.Colors.Set_Color (Ada.Text_IO.Current_Output.all,
 				Foreground => +Terminal.Colors.Names.Red);
 		end if;
-		Ada.Text_IO.Overloaded_Put (Message);
+		Ada.Text_IO.Put (Message);
 		if Colored then
 			Terminal.Colors.Reset_Color (Ada.Text_IO.Current_Output.all);
 		end if;
 		Ada.Text_IO.New_Line;
 	end Report_Missing_Final_New_Line;
-	package Unbounded_Wide_Wide_Strings
-		renames Ada.Strings.Unbounded_Wide_Wide_Strings;
+	package Unbounded_Strings renames Ada.Strings.Unbounded_Strings;
 	procedure Process_File (
 		File : in Ada.Text_IO.File_Type;
 		Name : in String;
@@ -113,30 +116,30 @@ procedure longlines is
 		Final_New_Line : in Boolean;
 		Colored : in Boolean)
 	is
-		Line : Unbounded_Wide_Wide_Strings.Unbounded_String;
+		Line : Unbounded_Strings.Unbounded_String;
 		Line_Number : Positive := 1;
 		Missing_Final_New_Line : Boolean := False;
 	begin
-		Unbounded_Wide_Wide_Strings.Reserve_Capacity (Line, Width + 1);
+		Unbounded_Strings.Reserve_Capacity (Line, Width + 1);
 		while not Ada.Text_IO.End_Of_File (File) loop
-			Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
+			Unbounded_Strings.Set_Length (Line, 0);
 			loop
 				declare
-					Item : Wide_Wide_Character;
+					Item : Character;
 					End_Of_Line : Boolean;
 				begin
-					Ada.Text_IO.Overloaded_Look_Ahead (File, Item, End_Of_Line);
+					Ada.Text_IO.Look_Ahead (File, Item, End_Of_Line);
 					if End_Of_Line and Ada.Text_IO.End_Of_File (File) then
 						Missing_Final_New_Line := True;
 					end if;
 					Ada.Text_IO.Skip_Ahead (File);
 					exit when End_Of_Line;
-					Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
+					Unbounded_Strings.Append (Line, (1 => Item));
 				end;
 			end loop;
 			declare
-				Line_Ref : Wide_Wide_String
-					renames Unbounded_Wide_Wide_Strings.Constant_Reference (Line);
+				Line_Ref : String
+					renames Unbounded_Strings.Constant_Reference (Line);
 			begin
 				Process_Line (Name, Line_Ref, Line_Number,
 					Tab => Tab, East_Asian => East_Asian, Width => Width,
@@ -154,8 +157,7 @@ procedure longlines is
 		end if;
 	end Process_File;
 	package Hierarchical_File_Names renames Ada.Hierarchical_File_Names;
-	package Unbounded_Strings renames Ada.Strings.Unbounded_Strings;
-	package Wide_Wide_Functions renames Ada.Strings.Wide_Wide_Functions;
+	package Functions renames Ada.Strings.Functions;
 	procedure Process_Diff (
 		File : in Ada.Text_IO.File_Type;
 		Strip : in Natural;
@@ -168,15 +170,15 @@ procedure longlines is
 		type Git_File_Mode is mod 8#1000000#;
 		Default_Mode : constant Git_File_Mode := 8#100644#;
 		Symbolic_Link : constant Git_File_Mode := 8#020000#;
-		function Value (Image : Wide_Wide_String) return Git_File_Mode is
+		function Value (Image : String) return Git_File_Mode is
 		begin
-			return Git_File_Mode'Wide_Wide_Value ("8#" & Image & "#");
+			return Git_File_Mode'Value ("8#" & Image & "#");
 		exception
 			when Constraint_Error =>
 				return Default_Mode;
 		end Value;
 		procedure Process_New_File_Mode (
-			Line : in Wide_Wide_String;
+			Line : in String;
 			Mode : out Git_File_Mode)
 		is
 			pragma Assert (
@@ -191,7 +193,7 @@ procedure longlines is
 			Mode := Value (Line (First .. P - 1));
 		end Process_New_File_Mode;
 		procedure Process_Index (
-			Line : in Wide_Wide_String;
+			Line : in String;
 			Mode : in out Git_File_Mode)
 		is
 			pragma Assert (
@@ -203,9 +205,7 @@ procedure longlines is
 				Index : Natural;
 			begin
 				Index :=
-					Wide_Wide_Functions.Index_Element_Forward (
-						Line (P .. Line'Last),
-						Ada.Wide_Wide_Characters.Latin_1.Space);
+					Functions.Index_Element_Forward (Line (P .. Line'Last), ' ');
 				if Index = 0 then
 					P := Line'Last + 1;
 				else
@@ -224,7 +224,7 @@ procedure longlines is
 			end if;
 		end Process_Index;
 		procedure Process_Diff_Name (
-			Line : in Wide_Wide_String;
+			Line : in String;
 			Name : out Unbounded_Strings.Unbounded_String)
 		is
 			pragma Assert (
@@ -240,9 +240,9 @@ procedure longlines is
 				Index : Natural;
 			begin
 				Index :=
-					Wide_Wide_Functions.Index_Element_Forward (
+					Functions.Index_Element_Forward (
 						Line (Line_First .. Line'Last),
-						Ada.Wide_Wide_Characters.Latin_1.HT);
+						Ada.Characters.Latin_1.HT);
 				if Index = 0 then
 					Line_Last := Line'Last;
 				else
@@ -250,14 +250,11 @@ procedure longlines is
 				end if;
 			end;
 			declare
-				S : String
-					renames Ada.Characters.Conversions.To_String (
-						Line (Line_First .. Line_Last));
-				S_First : Positive := S'First;
-				S_Last : Natural := S'Last;
+				S_First : Positive := Line_First;
+				S_Last : Natural := Line_Last;
 			begin
 				for I in 1 .. Strip loop
-					Hierarchical_File_Names.Relative_Name (S (S_First .. S_Last),
+					Hierarchical_File_Names.Relative_Name (Line (S_First .. S_Last),
 						First => S_First, Last => S_Last);
 				end loop;
 				if S_First > S_Last then
@@ -265,12 +262,12 @@ procedure longlines is
 				else
 					Unbounded_Strings.Set_Unbounded_String (
 						Name,
-						S (S_First .. S_Last));
+						Line (S_First .. S_Last));
 				end if;
 			end;
 		end Process_Diff_Name;
 		procedure Process_Diff_Hunk (
-			Line : in Wide_Wide_String;
+			Line : in String;
 			Line_Number : in out Positive)
 		is
 			pragma Assert (
@@ -285,9 +282,7 @@ procedure longlines is
 					Index : Natural;
 				begin
 					Index :=
-						Wide_Wide_Functions.Index_Element_Forward (
-							Line (P .. Line'Last),
-							Ada.Wide_Wide_Characters.Latin_1.Space);
+						Functions.Index_Element_Forward (Line (P .. Line'Last), ' ');
 					if Index = 0 then
 						P := Line'Last + 1;
 					else
@@ -303,8 +298,7 @@ procedure longlines is
 							P := P + 1;
 						end loop;
 						begin
-							Line_Number :=
-								Integer'Wide_Wide_Value (Line (First .. P - 1));
+							Line_Number := Integer'Value (Line (First .. P - 1));
 						exception
 							when Constraint_Error =>
 								Line_Number := 1;
@@ -313,35 +307,30 @@ procedure longlines is
 				end if;
 			end if;
 		end Process_Diff_Hunk;
-		procedure Get_Line (
-			Line : in out Unbounded_Wide_Wide_Strings.Unbounded_String)
-		is
-			Item : Wide_Wide_Character;
+		procedure Get_Line (Line : in out Unbounded_Strings.Unbounded_String) is
+			Item : Character;
 			End_Of_Line : Boolean;
 		begin
 			while not Ada.Text_IO.End_Of_File (File) loop
-				Ada.Text_IO.Overloaded_Look_Ahead (
-					File,
-					Item,
-					End_Of_Line);
+				Ada.Text_IO.Look_Ahead (File, Item, End_Of_Line);
 				Ada.Text_IO.Skip_Ahead (File);
 				exit when End_Of_Line;
-				Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
+				Unbounded_Strings.Append (Line, (1 => Item));
 			end loop;
 		end Get_Line;
 		Mode : Git_File_Mode := Default_Mode;
 		Name : Unbounded_Strings.Unbounded_String;
-		Line : Unbounded_Wide_Wide_Strings.Unbounded_String;
+		Line : Unbounded_Strings.Unbounded_String;
 		Line_Number : Positive := 1;
 		Added : Boolean := False;
 	begin
-		Unbounded_Wide_Wide_Strings.Reserve_Capacity (Line, Width + 1);
+		Unbounded_Strings.Reserve_Capacity (Line, Width + 1);
 		while not Ada.Text_IO.End_Of_File (File) loop
 			declare
-				Item : Wide_Wide_Character;
+				Item : Character;
 				End_Of_Line : Boolean;
 			begin
-				Ada.Text_IO.Overloaded_Look_Ahead (File, Item, End_Of_Line);
+				Ada.Text_IO.Look_Ahead (File, Item, End_Of_Line);
 				Ada.Text_IO.Skip_Ahead (File);
 				if not End_Of_Line then
 					case Item is
@@ -350,14 +339,12 @@ procedure longlines is
 							Ada.Text_IO.Skip_Line (File);
 							Added := False;
 						when '+' =>
-							Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
-							Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
+							Unbounded_Strings.Set_Length (Line, 0);
+							Unbounded_Strings.Append (Line, (1 => Item));
 							Get_Line (Line);
 							declare
-								Line_Ref : Wide_Wide_String
-									renames Unbounded_Wide_Wide_Strings
-											.Constant_Reference (
-										Line);
+								Line_Ref : String
+									renames Unbounded_Strings.Constant_Reference (Line);
 							begin
 								if Line_Ref'Length >= 4
 									and then Line_Ref (Line_Ref'First + 1) = '+'
@@ -389,14 +376,12 @@ procedure longlines is
 								end if;
 							end;
 						when '@' =>
-							Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
-							Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
+							Unbounded_Strings.Set_Length (Line, 0);
+							Unbounded_Strings.Append (Line, (1 => Item));
 							Get_Line (Line);
 							declare
-								Line_Ref : Wide_Wide_String
-									renames Unbounded_Wide_Wide_Strings
-											.Constant_Reference (
-										Line);
+								Line_Ref : String
+									renames Unbounded_Strings.Constant_Reference (Line);
 							begin
 								if Line_Ref'Length >= 3
 									and then Line_Ref (Line_Ref'First) = '@'
@@ -408,14 +393,12 @@ procedure longlines is
 							end;
 							Added := False;
 						when 'd' =>
-							Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
-							Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
+							Unbounded_Strings.Set_Length (Line, 0);
+							Unbounded_Strings.Append (Line, (1 => Item));
 							Get_Line (Line);
 							declare
-								Line_Ref : Wide_Wide_String
-									renames Unbounded_Wide_Wide_Strings
-											.Constant_Reference (
-										Line);
+								Line_Ref : String
+									renames Unbounded_Strings.Constant_Reference (Line);
 							begin
 								if Line_Ref'Length >= 5
 									and then Line_Ref (
@@ -429,14 +412,12 @@ procedure longlines is
 							end;
 							Added := False;
 						when 'i' =>
-							Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
-							Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
+							Unbounded_Strings.Set_Length (Line, 0);
+							Unbounded_Strings.Append (Line, (1 => Item));
 							Get_Line (Line);
 							declare
-								Line_Ref : Wide_Wide_String
-									renames Unbounded_Wide_Wide_Strings
-											.Constant_Reference (
-										Line);
+								Line_Ref : String
+									renames Unbounded_Strings.Constant_Reference (Line);
 							begin
 								if Line_Ref'Length >= 6
 									and then Line_Ref (
@@ -448,14 +429,12 @@ procedure longlines is
 							end;
 							Added := False;
 						when 'n' =>
-							Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
-							Unbounded_Wide_Wide_Strings.Append (Line, (1 => Item));
+							Unbounded_Strings.Set_Length (Line, 0);
+							Unbounded_Strings.Append (Line, (1 => Item));
 							Get_Line (Line);
 							declare
-								Line_Ref : Wide_Wide_String
-									renames Unbounded_Wide_Wide_Strings
-											.Constant_Reference (
-										Line);
+								Line_Ref : String
+									renames Unbounded_Strings.Constant_Reference (Line);
 							begin
 								if Line_Ref'Length >= 14
 									and then Line_Ref (
@@ -471,15 +450,14 @@ procedure longlines is
 								and then Added
 								and then (Mode and Symbolic_Link) = 0
 							then
-								Unbounded_Wide_Wide_Strings.Set_Length (Line, 0);
+								Unbounded_Strings.Set_Length (Line, 0);
 								Get_Line (Line);
 								declare
 									Name_Ref : String
 										renames Unbounded_Strings.Constant_Reference (
 											Name);
-									Line_Ref : Wide_Wide_String
-										renames Unbounded_Wide_Wide_Strings
-												.Constant_Reference (
+									Line_Ref : String
+										renames Unbounded_Strings.Constant_Reference (
 											Line);
 								begin
 									Report_Missing_Final_New_Line (
