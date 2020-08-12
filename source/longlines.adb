@@ -142,17 +142,13 @@ procedure longlines is
 					renames Unbounded_Strings.Constant_Reference (Line);
 			begin
 				Process_Line (Name, Line_Ref, Line_Number,
-					Tab => Tab, East_Asian => East_Asian, Width => Width,
-					Colored => Colored);
+					Tab => Tab, East_Asian => East_Asian, Width => Width, Colored => Colored);
 			end;
 			exit when Missing_Final_New_Line;
 			Line_Number := Line_Number + 1;
 		end loop;
 		if Missing_Final_New_Line and Final_New_Line then
-			Report_Missing_Final_New_Line (
-				Name,
-				Line_Number,
-				" No newline at end of file",
+			Report_Missing_Final_New_Line (Name, Line_Number, " No newline at end of file",
 				Colored => Colored);
 		end if;
 	end Process_File;
@@ -177,13 +173,10 @@ procedure longlines is
 			when Constraint_Error =>
 				return Default_Mode;
 		end Value;
-		procedure Process_New_File_Mode (
-			Line : in String;
-			Mode : out Git_File_Mode)
-		is
+		procedure Process_New_File_Mode (Line : in String; Mode : out Git_File_Mode) is
 			pragma Assert (
 				Line'Length >= 14
-				and then Line (Line'First .. Line'First + 13) = "new file mode ");
+					and then Line (Line'First .. Line'First + 13) = "new file mode ");
 			P : Positive := Line'First + 14;
 			First : constant Positive := P;
 		begin
@@ -192,20 +185,15 @@ procedure longlines is
 			end loop;
 			Mode := Value (Line (First .. P - 1));
 		end Process_New_File_Mode;
-		procedure Process_Index (
-			Line : in String;
-			Mode : in out Git_File_Mode)
-		is
+		procedure Process_Index (Line : in String; Mode : in out Git_File_Mode) is
 			pragma Assert (
-				Line'Length >= 6
-				and then Line (Line'First .. Line'First + 5) = "index ");
+				Line'Length >= 6 and then Line (Line'First .. Line'First + 5) = "index ");
 			P : Positive := Line'First + 6;
 		begin
 			declare
 				Index : Natural;
 			begin
-				Index :=
-					Functions.Index_Element_Forward (Line (P .. Line'Last), ' ');
+				Index := Functions.Index_Element_Forward (Line (P .. Line'Last), ' ');
 				if Index = 0 then
 					P := Line'Last + 1;
 				else
@@ -229,10 +217,10 @@ procedure longlines is
 		is
 			pragma Assert (
 				Line'Length >= 4
-				and then Line (Line'First) = '+'
-				and then Line (Line'First + 1) = '+'
-				and then Line (Line'First + 2) = '+'
-				and then Line (Line'First + 3) = ' ');
+					and then Line (Line'First) = '+'
+					and then Line (Line'First + 1) = '+'
+					and then Line (Line'First + 2) = '+'
+					and then Line (Line'First + 3) = ' ');
 			Line_First : constant Positive := Line'First + 4;
 			Line_Last : Natural;
 		begin
@@ -260,9 +248,7 @@ procedure longlines is
 				if S_First > S_Last then
 					Unbounded_Strings.Set_Unbounded_String (Name, "-");
 				else
-					Unbounded_Strings.Set_Unbounded_String (
-						Name,
-						Line (S_First .. S_Last));
+					Unbounded_Strings.Set_Unbounded_String (Name, Line (S_First .. S_Last));
 				end if;
 			end;
 		end Process_Diff_Name;
@@ -272,17 +258,16 @@ procedure longlines is
 		is
 			pragma Assert (
 				Line'Length >= 3
-				and then Line (Line'First) = '@'
-				and then Line (Line'First + 1) = '@'
-				and then Line (Line'First + 2) = ' ');
+					and then Line (Line'First) = '@'
+					and then Line (Line'First + 1) = '@'
+					and then Line (Line'First + 2) = ' ');
 			P : Positive := Line'First + 3;
 		begin
 			if Line (P) = '-' then
 				declare
 					Index : Natural;
 				begin
-					Index :=
-						Functions.Index_Element_Forward (Line (P .. Line'Last), ' ');
+					Index := Functions.Index_Element_Forward (Line (P .. Line'Last), ' ');
 					if Index = 0 then
 						P := Line'Last + 1;
 					else
@@ -358,17 +343,11 @@ procedure longlines is
 									if (Mode and Symbolic_Link) = 0 then
 										declare
 											Name_Ref : String
-												renames Unbounded_Strings
-														.Constant_Reference (
-													Name);
+												renames Unbounded_Strings.Constant_Reference (Name);
 										begin
 											Process_Line (
-												Name_Ref,
-												Line_Ref (
-													Line_Ref'First + 1 .. Line_Ref'Last),
-												Line_Number,
-												Tab => Tab, East_Asian => East_Asian,
-												Width => Width, Colored => Colored);
+												Name_Ref, Line_Ref (Line_Ref'First + 1 .. Line_Ref'Last), Line_Number,
+												Tab => Tab, East_Asian => East_Asian, Width => Width, Colored => Colored);
 										end;
 									end if;
 									Line_Number := Line_Number + 1;
@@ -401,9 +380,7 @@ procedure longlines is
 									renames Unbounded_Strings.Constant_Reference (Line);
 							begin
 								if Line_Ref'Length >= 5
-									and then Line_Ref (
-											Line_Ref'First .. Line_Ref'First + 4) =
-										"diff "
+									and then Line_Ref (Line_Ref'First .. Line_Ref'First + 4) = "diff "
 								then
 									Unbounded_Strings.Set_Length (Name, 0);
 									Mode := Default_Mode;
@@ -420,9 +397,7 @@ procedure longlines is
 									renames Unbounded_Strings.Constant_Reference (Line);
 							begin
 								if Line_Ref'Length >= 6
-									and then Line_Ref (
-											Line_Ref'First .. Line_Ref'First + 5) =
-										"index "
+									and then Line_Ref (Line_Ref'First .. Line_Ref'First + 5) = "index "
 								then
 									Process_Index (Line_Ref, Mode);
 								end if;
@@ -437,9 +412,7 @@ procedure longlines is
 									renames Unbounded_Strings.Constant_Reference (Line);
 							begin
 								if Line_Ref'Length >= 14
-									and then Line_Ref (
-											Line_Ref'First .. Line_Ref'First + 13) =
-										"new file mode "
+									and then Line_Ref (Line_Ref'First .. Line_Ref'First + 13) = "new file mode "
 								then
 									Process_New_File_Mode (Line_Ref, Mode);
 								end if;
@@ -454,16 +427,11 @@ procedure longlines is
 								Get_Line (Line);
 								declare
 									Name_Ref : String
-										renames Unbounded_Strings.Constant_Reference (
-											Name);
+										renames Unbounded_Strings.Constant_Reference (Name);
 									Line_Ref : String
-										renames Unbounded_Strings.Constant_Reference (
-											Line);
+										renames Unbounded_Strings.Constant_Reference (Line);
 								begin
-									Report_Missing_Final_New_Line (
-										Name_Ref,
-										Line_Number - 1,
-										Line_Ref,
+									Report_Missing_Final_New_Line (Name_Ref, Line_Number - 1, Line_Ref,
 										Colored => Colored);
 								end;
 							else
@@ -509,9 +477,7 @@ procedure longlines is
 		return Country = "ZH" or else Country = "JP" or else Country = "KO";
 	end CJK;
 	package Parsing renames Ada.Command_Line.Parsing;
-	function Get_Value (
-		Position : Parsing.Cursor;
-		Min, Max : Integer)
+	function Get_Value (Position : Parsing.Cursor; Min, Max : Integer)
 		return Integer
 	is
 		Value : constant String := Parsing.Value (Position);
@@ -604,8 +570,7 @@ begin
 				Skip : Boolean := False;
 			begin
 				declare
-					Directory_Entry : constant
-							Ada.Directories.Directory_Entry_Type :=
+					Directory_Entry : constant Ada.Directories.Directory_Entry_Type :=
 						Ada.Directories.Get_Entry (Argument);
 				begin
 					case Ada.Directories.Kind (Directory_Entry) is
@@ -614,8 +579,7 @@ begin
 						when Ada.Directories.Directory =>
 							Skip := True;
 						when Ada.Directories.Special_File =>
-							if Ada.Directories.Information.Is_Symbolic_Link (
-									Directory_Entry)
+							if Ada.Directories.Information.Is_Symbolic_Link (Directory_Entry)
 								and then not Dereference
 							then
 								Skip := True;
@@ -630,12 +594,18 @@ begin
 							Shared => IO_Modes.Allow);
 						if Diff then
 							Process_Diff (File, Strip,
-								Tab => Tab, East_Asian => East_Asian, Width => Width,
-								Final_New_Line => Final_New_Line, Colored => Colored);
+								Tab => Tab,
+								East_Asian => East_Asian,
+								Width => Width,
+								Final_New_Line => Final_New_Line,
+								Colored => Colored);
 						else
 							Process_File (File, Argument,
-								Tab => Tab, East_Asian => East_Asian, Width => Width,
-								Final_New_Line => Final_New_Line, Colored => Colored);
+								Tab => Tab,
+								East_Asian => East_Asian,
+								Width => Width,
+								Final_New_Line => Final_New_Line,
+								Colored => Colored);
 						end if;
 						Ada.Text_IO.Close (File);
 					end;
@@ -653,12 +623,18 @@ begin
 	if From_Standard_Input then
 		if Diff then
 			Process_Diff (Ada.Text_IO.Standard_Input.all, Strip,
-				Tab => Tab, East_Asian => East_Asian, Width => Width,
-				Final_New_Line => Final_New_Line, Colored => Colored);
+				Tab => Tab,
+				East_Asian => East_Asian,
+				Width => Width,
+				Final_New_Line => Final_New_Line,
+				Colored => Colored);
 		else
 			Process_File (Ada.Text_IO.Standard_Input.all, "-",
-				Tab => Tab, East_Asian => East_Asian, Width => Width,
-				Final_New_Line => Final_New_Line, Colored => Colored);
+				Tab => Tab,
+				East_Asian => East_Asian,
+				Width => Width,
+				Final_New_Line => Final_New_Line,
+				Colored => Colored);
 		end if;
 	end if;
 end longlines;
