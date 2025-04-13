@@ -76,8 +76,11 @@ ifneq ($(DRAKE_RTSROOT),)
  endif
 endif
 
+ADC=$(wildcard *.adc)
+
 GARGS=$(addprefix --RTS=,$(DRAKE_RTSDIR))
-MARGS=-C -D $(BUILDDIR) -gnatA $(addprefix -gnatec=,$(wildcard *.adc))
+MARGS=-C -D $(BUILDDIR) -gnatA $(addprefix -gnatec=,$(ADC)) \
+      $(addprefix -I,$(and $(ADC),.))
 CARGS=$(CFLAGS) $(CFLAGS_ADA)
 BARGS=-E -x
 LARGS=$(LDFLAGS)
