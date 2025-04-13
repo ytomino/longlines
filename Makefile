@@ -15,9 +15,9 @@ else
  BINLN=bin
 endif
 
-BUILD=release
+DEBUG=1
 
-ifeq ($(BUILD),debug)
+ifneq ($(filter-out 0 1,$(DEBUG)),)
  BUILDDIR=$(TARGET).noindex/debug
  LINK=
 else
@@ -48,14 +48,18 @@ else ifeq ($(LINK),lto)
  LDFLAGS+=-flto
 endif
 
-ifeq ($(BUILD),debug)
- CFLAGS+=-ggdb -Og -fno-guess-branch-probability
+ifneq ($(filter-out 0 1,$(DEBUG)),)
+ CFLAGS+=-Og -fno-guess-branch-probability
  CFLAGS_ADA+=-gnata
- LDFLAGS+=-ggdb -Og
+ LDFLAGS+=-Og
 else
- CFLAGS+=-ggdb1 -Os
+ CFLAGS+=-Os
  CFLAGS_ADA+=-gnatB -gnatn2 -gnatVn
- LDFLAGS+=-ggdb1 -Os
+ LDFLAGS+=-Os
+endif
+ifneq ($(filter-out 0,$(DEBUG)),)
+ CFLAGS+=-ggdb$(DEBUG)
+ LDFLAGS+=-ggdb$(DEBUG)
  ifneq ($(findstring freebsd,$(TARGET))$(findstring linux-gnu,$(TARGET)),)
   LDFLAGS+=-Wl,--compress-debug-sections=zlib
  endif
@@ -63,7 +67,9 @@ endif
 
 ifneq ($(DRAKE_RTSROOT),)
  VERSION:=$(shell gcc -dumpversion)
- ifneq ($(and $(filter debug,$(BUILD)),$(wildcard $(DRAKE_RTSROOT)/$(TARGET)/$(VERSION)/debug)),)
+ ifneq ($(and $(filter-out 0 1,$(DEBUG)), \
+          $(wildcard $(DRAKE_RTSROOT)/$(TARGET)/$(VERSION)/debug)), \
+        )
   DRAKE_RTSDIR=$(DRAKE_RTSROOT)/$(TARGET)/$(VERSION)/debug
  else
   DRAKE_RTSDIR=$(DRAKE_RTSROOT)/$(TARGET)/$(VERSION)
