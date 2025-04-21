@@ -65,20 +65,11 @@ ifneq ($(filter-out 0,$(DEBUG)),)
  endif
 endif
 
-ifneq ($(DRAKE_RTSROOT),)
- VERSION:=$(shell gcc -dumpversion)
- ifneq ($(and $(filter-out 0 1,$(DEBUG)), \
-          $(wildcard $(DRAKE_RTSROOT)/$(TARGET)/$(VERSION)/debug)), \
-        )
-  DRAKE_RTSDIR=$(DRAKE_RTSROOT)/$(TARGET)/$(VERSION)/debug
- else
-  DRAKE_RTSDIR=$(DRAKE_RTSROOT)/$(TARGET)/$(VERSION)
- endif
-endif
+RTSDIR?= # specifying it to drake is prerequisite
 
 ADC=$(wildcard *.adc)
 
-GARGS=$(addprefix --RTS=,$(DRAKE_RTSDIR))
+GARGS=$(addprefix --RTS=,$(RTSDIR))
 MARGS=-C -D $(BUILDDIR) -gnatA $(addprefix -gnatec=,$(ADC)) \
       $(addprefix -I,$(and $(ADC),.))
 CARGS=$(CFLAGS) $(CFLAGS_ADA)
@@ -103,6 +94,7 @@ $(BINLN): | $(BUILDDIR)
 	ln -s $(BUILDDIR) $@
 
 $(BUILDDIR):
+	@$(if $(RTSDIR),,$(warning RTSDIR is unset)false)
 	mkdir -p $@
 
 clean:
