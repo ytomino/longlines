@@ -87,8 +87,9 @@ all: $(BUILDDIR)/longlines$(EXESUFFIX) $(BINLN)
 
 $(BUILDDIR)/longlines$(EXESUFFIX): source/longlines.adb | $(BUILDDIR)
 	$(GNATPREFIX)gnatmake -c $< $(MARGS) $(GARGS) -cargs $(CARGS)
-	cd $(BUILDDIR) && $(GNATPREFIX)gnatbind $(basename $(notdir $<)).ali $(GARGS) $(BARGS)
-	cd $(BUILDDIR) && $(GNATPREFIX)gnatlink -o $(notdir $@) $(basename $(notdir $<)).ali $(GARGS) $(LARGS)
+	cd $(BUILDDIR) && $(GNATPREFIX)gnatbind $(<F:.adb=.ali) $(GARGS) $(BARGS)
+	cd $(BUILDDIR) && $(GNATPREFIX)gnatlink $(strip \
+		-o $(@F) $(<F:.adb=.ali) $(GARGS) $(LARGS))
 
 $(BINLN): | $(BUILDDIR)
 	ln -s $(BUILDDIR) $@
