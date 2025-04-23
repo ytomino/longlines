@@ -8,12 +8,13 @@ else
 endif
 
 ifneq ($(TARGET),$(HOST))
- GNATPREFIX=$(TARGET)-
+ GCCPREFIX=$(TARGET)-
  BINLN=
 else
- GNATPREFIX=
+ GCCPREFIX=
  BINLN=bin
 endif
+GCCSUFFIX=
 
 DEBUG=1
 
@@ -86,9 +87,10 @@ BINDIR=$(PREFIX)/bin
 all: $(BUILDDIR)/longlines$(EXESUFFIX) $(BINLN)
 
 $(BUILDDIR)/longlines$(EXESUFFIX): source/longlines.adb | $(BUILDDIR)
-	$(GNATPREFIX)gnatmake -c $< $(MARGS) $(GARGS) -cargs $(CARGS)
-	cd $(BUILDDIR) && $(GNATPREFIX)gnatbind $(<F:.adb=.ali) $(GARGS) $(BARGS)
-	cd $(BUILDDIR) && $(GNATPREFIX)gnatlink $(strip \
+	$(GCCPREFIX)gnatmake$(GCCSUFFIX) -c $< $(MARGS) $(GARGS) -cargs $(CARGS)
+	cd $(BUILDDIR) && $(GCCPREFIX)gnatbind$(GCCSUFFIX) $(strip \
+		$(<F:.adb=.ali) $(GARGS) $(BARGS))
+	cd $(BUILDDIR) && $(GCCPREFIX)gnatlink$(GCCSUFFIX) $(strip \
 		-o $(@F) $(<F:.adb=.ali) $(GARGS) $(LARGS))
 
 $(BINLN): | $(BUILDDIR)
