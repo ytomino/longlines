@@ -531,7 +531,7 @@ begin
 				X : constant Integer := Get_Value (I, 0, 255);
 			begin
 				if X < 0 then
-					Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+					Ada.Command_Line.Set_Exit_Status (2);
 					return;
 				end if;
 				Strip := X;
@@ -541,7 +541,7 @@ begin
 				X : constant Integer := Get_Value (I, 0, 8);
 			begin
 				if X < 0 then
-					Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+					Ada.Command_Line.Set_Exit_Status (2);
 					return;
 				end if;
 				Tab := X;
@@ -551,7 +551,7 @@ begin
 				X : constant Integer := Get_Value (I, 1, Integer'Last);
 			begin
 				if X <= 0 then
-					Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+					Ada.Command_Line.Set_Exit_Status (2);
 					return;
 				end if;
 				Width := X;
@@ -561,7 +561,7 @@ begin
 			Ada.Text_IO.Put ("Unknown option: ");
 			Ada.Text_IO.Put (Parsing.Name (I));
 			Ada.Text_IO.New_Line;
-			Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+			Ada.Command_Line.Set_Exit_Status (2);
 			return;
 		else
 			From_Standard_Input := False;
@@ -616,7 +616,7 @@ begin
 					Ada.Text_IO.Put ("Failure to open: ");
 					Ada.Text_IO.Put (Argument);
 					Ada.Text_IO.New_Line;
-					Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+					Ada.Command_Line.Set_Exit_Status (2);
 			end;
 		end if;
 	end loop;
