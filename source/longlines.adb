@@ -60,13 +60,15 @@ procedure longlines is
 		Tab : in Natural;
 		East_Asian : in Boolean;
 		Width : in Positive;
-		Colored : in Boolean)
+		Colored : in Boolean;
+		Found : out Boolean)
 	is
 		Over_Index : Natural;
 		Line_Width : Natural;
 	begin
 		Get_Line_Width (Line, Over_Index, Line_Width,
 			Tab => Tab, East_Asian => East_Asian, Width => Width);
+		Found := False;
 		if Line_Width > Width then
 			Ada.Text_IO.Put (Name);
 			Ada.Text_IO.Put (':');
@@ -84,6 +86,7 @@ procedure longlines is
 				Terminal.Colors.Reset_Color (Ada.Text_IO.Current_Output.all);
 			end if;
 			Ada.Text_IO.New_Line;
+			Found := True;
 		end if;
 	end Process_Line;
 	procedure Report_Missing_Final_New_Line (
@@ -114,13 +117,15 @@ procedure longlines is
 		East_Asian : in Boolean;
 		Width : in Positive;
 		Final_New_Line : in Boolean;
-		Colored : in Boolean)
+		Colored : in Boolean;
+		Found : out Boolean)
 	is
 		Line : Unbounded_Strings.Unbounded_String;
 		Line_Number : Positive := 1;
 		Missing_Final_New_Line : Boolean := False;
 	begin
 		Unbounded_Strings.Reserve_Capacity (Line, Width + 1);
+		Found := False;
 		while not Ada.Text_IO.End_Of_File (File) loop
 			Unbounded_Strings.Set_Length (Line, 0);
 			loop
@@ -140,9 +145,12 @@ procedure longlines is
 			declare
 				Line_Ref : String
 					renames Unbounded_Strings.Constant_Reference (Line);
+				Found_In_Line : Boolean;
 			begin
 				Process_Line (Name, Line_Ref, Line_Number,
-					Tab => Tab, East_Asian => East_Asian, Width => Width, Colored => Colored);
+					Tab => Tab, East_Asian => East_Asian, Width => Width, Colored => Colored,
+					Found => Found_In_Line);
+				Found := Found or else Found_In_Line;
 			end;
 			exit when Missing_Final_New_Line;
 			Line_Number := Line_Number + 1;
@@ -150,6 +158,7 @@ procedure longlines is
 		if Missing_Final_New_Line and Final_New_Line then
 			Report_Missing_Final_New_Line (Name, Line_Number, " No newline at end of file",
 				Colored => Colored);
+			Found := True;
 		end if;
 	end Process_File;
 	package Hierarchical_File_Names renames Ada.Hierarchical_File_Names;
@@ -161,7 +170,8 @@ procedure longlines is
 		East_Asian : in Boolean;
 		Width : in Positive;
 		Final_New_Line : in Boolean;
-		Colored : in Boolean)
+		Colored : in Boolean;
+		Found : out Boolean)
 	is
 		type Git_File_Mode is mod 8#1000000#;
 		Default_Mode : constant Git_File_Mode := 8#100644#;
@@ -310,6 +320,7 @@ procedure longlines is
 		Added : Boolean := False;
 	begin
 		Unbounded_Strings.Reserve_Capacity (Line, Width + 1);
+		Found := False;
 		while not Ada.Text_IO.End_Of_File (File) loop
 			declare
 				Item : Character;
@@ -344,10 +355,13 @@ procedure longlines is
 										declare
 											Name_Ref : String
 												renames Unbounded_Strings.Constant_Reference (Name);
+											Found_In_Line : Boolean;
 										begin
 											Process_Line (
 												Name_Ref, Line_Ref (Line_Ref'First + 1 .. Line_Ref'Last), Line_Number,
-												Tab => Tab, East_Asian => East_Asian, Width => Width, Colored => Colored);
+												Tab => Tab, East_Asian => East_Asian, Width => Width, Colored => Colored,
+												Found => Found_In_Line);
+											Found := Found or else Found_In_Line;
 										end;
 									end if;
 									Line_Number := Line_Number + 1;
@@ -433,6 +447,7 @@ procedure longlines is
 								begin
 									Report_Missing_Final_New_Line (Name_Ref, Line_Number - 1, Line_Ref,
 										Colored => Colored);
+									Found := True;
 								end;
 							else
 								Ada.Text_IO.Skip_Line (File);
@@ -470,6 +485,7 @@ procedure longlines is
 			& "Strip num leading directories from each path in diff");
 		P ("  -tNUM --tab=NUM       Expand horizonal tab as NUM (default: 8)");
 		P ("  -wNUM --width=NUM     Check lines longer than NUM (default: 79)");
+		P ("  --exit1               Return exit status 1 when some line is found");
 	end Help;
 	function CJK return Boolean is
 		Country : constant Ada.Locales.Country_Code := Ada.Locales.Country;
@@ -504,9 +520,11 @@ procedure longlines is
 	East_Asian : Boolean := CJK;
 	Width : Positive := 79;
 	Final_New_Line : Boolean := True;
+	Exit1 : Boolean := False;
 	Colored : constant Boolean :=
 		Terminal.Is_Terminal (Ada.Text_IO.Current_Output.all);
 	From_Standard_Input : Boolean := True;
+	Found : Boolean := False;
 begin
 	for I in Parsing.Iterate loop
 		if Parsing.Is_Option (I, 'd', "diff") then
@@ -556,6 +574,8 @@ begin
 				end if;
 				Width := X;
 			end;
+		elsif Parsing.Is_Option (I, "exit1") then
+			Exit1 := True;
 		elsif Parsing.Is_Unknown_Option (I) then
 			Ada.Text_IO.Set_Output (Ada.Text_IO.Standard_Error.all);
 			Ada.Text_IO.Put ("Unknown option: ");
@@ -589,24 +609,20 @@ begin
 				if not Skip then
 					declare
 						File : Ada.Text_IO.File_Type;
+						Found_In_File : Boolean;
 					begin
 						Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Argument,
 							Shared => IO_Modes.Allow);
 						if Diff then
 							Process_Diff (File, Strip,
-								Tab => Tab,
-								East_Asian => East_Asian,
-								Width => Width,
-								Final_New_Line => Final_New_Line,
-								Colored => Colored);
+								Tab => Tab, East_Asian => East_Asian, Width => Width,
+								Final_New_Line => Final_New_Line, Colored => Colored, Found => Found_In_File);
 						else
 							Process_File (File, Argument,
-								Tab => Tab,
-								East_Asian => East_Asian,
-								Width => Width,
-								Final_New_Line => Final_New_Line,
-								Colored => Colored);
+								Tab => Tab, East_Asian => East_Asian, Width => Width,
+								Final_New_Line => Final_New_Line, Colored => Colored, Found => Found_In_File);
 						end if;
+						Found := Found or Found_In_File;
 						Ada.Text_IO.Close (File);
 					end;
 				end if;
@@ -623,18 +639,15 @@ begin
 	if From_Standard_Input then
 		if Diff then
 			Process_Diff (Ada.Text_IO.Standard_Input.all, Strip,
-				Tab => Tab,
-				East_Asian => East_Asian,
-				Width => Width,
-				Final_New_Line => Final_New_Line,
-				Colored => Colored);
+				Tab => Tab, East_Asian => East_Asian, Width => Width,
+				Final_New_Line => Final_New_Line, Colored => Colored, Found => Found);
 		else
 			Process_File (Ada.Text_IO.Standard_Input.all, "-",
-				Tab => Tab,
-				East_Asian => East_Asian,
-				Width => Width,
-				Final_New_Line => Final_New_Line,
-				Colored => Colored);
+				Tab => Tab, East_Asian => East_Asian, Width => Width,
+				Final_New_Line => Final_New_Line, Colored => Colored, Found => Found);
 		end if;
+	end if;
+	if Exit1 and then Found then
+		Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
 	end if;
 end longlines;
