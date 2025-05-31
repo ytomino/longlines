@@ -477,7 +477,7 @@ procedure longlines is
 		P ("  -E --no-east-asisn    Turn off -e");
 		P ("  -f --final-newline    "
 			& "Check newline exists at end of file (default: on)");
-		P ("  -F --no-final-newline Turn off -F");
+		P ("  -F --no-final-newline Turn off -f");
 		P ("  -h --help             Display this information");
 		P ("  -L --dereference      Follow symbolic links (default: off)");
 		P ("  -P --no-dereference   Turn off -L");
