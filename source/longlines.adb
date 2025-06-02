@@ -108,52 +108,57 @@ procedure longlines is
 		elsif Check_Blank then
 			declare
 				Last_Non_Blank : Natural := Line'Last;
-				First : Positive := Line'First;
 			begin
 				Get_Last_Non_Blank (Line, Last_Non_Blank);
-				if Last_Non_Blank >= Line'First + 1 then
+				if Last_Non_Blank >= Line'First then
 					declare
-						Index : Positive := Line'First + 1; -- check tab from Line'First + 1
+						First : Positive := Line'First;
 					begin
-						while Index <= Last_Non_Blank loop
-							if Is_Bad_HT (Line, Index) then
-								if not Found then
-									Put_Header;
-								end if;
-								Ada.Text_IO.Put (Line (First .. Index - 1));
-								if Colored then
-									Terminal.Colors.Set_Color (Ada.Text_IO.Current_Output.all,
-										Background => +Terminal.Colors.Names.Red);
-								end if;
-								Ada.Text_IO.Put (Line (Index));
-								if Colored then
-									Terminal.Colors.Reset_Color (Ada.Text_IO.Current_Output.all);
-								end if;
-								First := Index + 1;
-								Found := True;
+						if Last_Non_Blank >= Line'First + 1 then
+							declare
+								Index : Positive := Line'First + 1; -- check tab from Line'First + 1
+							begin
+								while Index <= Last_Non_Blank loop
+									if Is_Bad_HT (Line, Index) then
+										if not Found then
+											Put_Header;
+										end if;
+										Ada.Text_IO.Put (Line (First .. Index - 1));
+										if Colored then
+											Terminal.Colors.Set_Color (Ada.Text_IO.Current_Output.all,
+												Background => +Terminal.Colors.Names.Red);
+										end if;
+										Ada.Text_IO.Put (Line (Index));
+										if Colored then
+											Terminal.Colors.Reset_Color (Ada.Text_IO.Current_Output.all);
+										end if;
+										First := Index + 1;
+										Found := True;
+									end if;
+									Index := Index + 1;
+								end loop;
+							end;
+						end if;
+						if Last_Non_Blank < Line'Last then
+							if not Found then
+								Put_Header;
 							end if;
-							Index := Index + 1;
-						end loop;
+							Ada.Text_IO.Put (Line (First .. Last_Non_Blank));
+							if Colored then
+								Terminal.Colors.Set_Color (Ada.Text_IO.Current_Output.all,
+									Background => +Terminal.Colors.Names.Red);
+							end if;
+							Ada.Text_IO.Put (Line (Last_Non_Blank + 1 .. Line'Last));
+							if Colored then
+								Terminal.Colors.Reset_Color (Ada.Text_IO.Current_Output.all);
+							end if;
+							First := Line'Last + 1;
+							Found := True;
+						end if;
+						if Found then
+							Ada.Text_IO.Put_Line (Line (First .. Line'Last));
+						end if;
 					end;
-				end if;
-				if Last_Non_Blank < Line'Last then
-					if not Found then
-						Put_Header;
-					end if;
-					Ada.Text_IO.Put (Line (First .. Last_Non_Blank));
-					if Colored then
-						Terminal.Colors.Set_Color (Ada.Text_IO.Current_Output.all,
-							Background => +Terminal.Colors.Names.Red);
-					end if;
-					Ada.Text_IO.Put (Line (Last_Non_Blank + 1 .. Line'Last));
-					if Colored then
-						Terminal.Colors.Reset_Color (Ada.Text_IO.Current_Output.all);
-					end if;
-					First := Line'Last + 1;
-					Found := True;
-				end if;
-				if Found then
-					Ada.Text_IO.Put_Line (Line (First .. Line'Last));
 				end if;
 			end;
 		end if;
